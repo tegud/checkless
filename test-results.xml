@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="1.0819999999999999" tests="5" failures="0">
+  <testsuite name="Root Suite" timestamp="2018-05-19T10:05:05" tests="0" failures="0" time="0">
+  </testsuite>
+  <testsuite name="make-request" timestamp="2018-05-19T10:05:05" tests="5" file="/mnt/c/code/home/checkless/tests/make-request.js" failures="0" time="1.0819999999999999">
+    <testcase name="make-request sends a message to SNS when successful" time="0.052" classname="sends a message to SNS when successful">
+    </testcase>
+    <testcase name="make-request sends a message to SNS when request timed out" time="0.006" classname="sends a message to SNS when request timed out">
+    </testcase>
+    <testcase name="make-request sends a message to SNS when server responds with non-200" time="0.005" classname="sends a message to SNS when server responds with non-200">
+    </testcase>
+    <testcase name="make-request sends a message to SNS when server does not respond on port" time="1.011" classname="sends a message to SNS when server does not respond on port">
+    </testcase>
+    <testcase name="make-request sets user-agent to lambda-overwatch" time="0.008" classname="sets user-agent to lambda-overwatch">
+    </testcase>
+  </testsuite>
+</testsuites>
