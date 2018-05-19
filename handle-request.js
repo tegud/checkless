@@ -1,25 +1,7 @@
-const AWS = require("aws-sdk"); // eslint-disable-line import/no-extraneous-dependencies
 const { parseContext } = require("./lib/context");
+const { publishToSns } = require("./lib/sns");
 
-function sendSnsEvent(topicArn, subject, message) {
-    return new Promise((resolve, reject) => {
-        const sns = new AWS.SNS();
-
-        sns.publish({
-            Message: JSON.stringify(message),
-            Subject: subject,
-            TopicArn: topicArn,
-        }, (err) => {
-            if (err) {
-                reject(new Error(`Failed to send SNS ${err}`));
-            }
-
-            resolve();
-        });
-    });
-}
-
-module.exports.handleRequest = (event, context, callback) => {
+module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
     const snsFailureTopic = process.env.failedSnsTopic;
     const snsCompleteTopic = process.env.completeSnsTopic;
@@ -36,16 +18,20 @@ module.exports.handleRequest = (event, context, callback) => {
 
     console.log(`Handling request for ${result.url}, success: ${result.success}, sendingToTopics: ${topicsToSendTo.join(", ")}`);
 
-    sendSnsEvent(snsCompleteTopicArn, `SITE RESULT: ${result.url}`, result)
-        .then(() => {
-            if (result.success) {
-                console.log("Site monitor ok, nothing to do");
-                return new Promise(resolve => resolve());
-            }
+    try {
+        await publishToSns(snsCompleteTopicArn, `SITE RESULT: ${result.url}`, result);
 
-            console.log("Site monitor fail, sending to failure SNS");
-            return sendSnsEvent(snsFailureTopicArn, `SITE FAIL: ${result.url}`, result.errorMessage || result);
-        })
-        .then(() => callback())
-        .catch(callback);
+        if (result.success) {
+            console.log("Site monitor ok, nothing to do");
+            return new Promise(resolve => resolve());
+        }
+
+        console.log("Site monitor fail, sending to failure SNS");
+
+        await publishToSns(snsFailureTopicArn, `SITE FAIL: ${result.url}`, result.errorMessage || result);
+    } catch (error) {
+        console.error(`Error sending SNS: ${error.message}`);
+    }
+
+    return callback();
 };

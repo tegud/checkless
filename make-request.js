@@ -1,4 +1,4 @@
-const AWS = require("aws-sdk"); // eslint-disable-line import/no-extraneous-dependencies
+const { publishToSns } = require("./lib/sns");
 const request = require("request");
 
 const { parseContext } = require("./lib/context");
@@ -22,34 +22,49 @@ function buildResult(url, response, timeout, ttfb) {
     return result;
 }
 
-function buildTimeoutResult(url, timeout) {
+const buildResultFromError = (err, url, timeout, ttfb) => {
+    if (err.code === "ETIMEDOUT" || err.code === "ESOCKETTIMEDOUT") {
+        return {
+            success: false,
+            url,
+            timeout,
+            errorMessage: `Timeout after ${timeout}ms from url: ${url}`,
+        };
+    }
+
+    if (err.code === "ECONNREFUSED") {
+        return {
+            success: false,
+            url,
+            timeout,
+            errorMessage: "Could not connect",
+        };
+    }
+
     return {
         success: false,
         url,
         timeout,
-        errorMessage: `Timeout after ${timeout}ms from url: ${url}`,
+        timeToFirstByte: ttfb,
+        errorMessage: err.message || err,
     };
-}
+};
 
-function sendSnsEvent(topicArn, subject, message) {
-    return new Promise((resolve, reject) => {
-        const sns = new AWS.SNS();
+const checkUrl = (url, timeout) => new Promise((resolve, reject) => request({
+    url,
+    headers: {
+        "User-Agent": `checkless/1.0 (aws-lambda node-js/${process.version})`,
+    },
+    timeout,
+}, (err, res) => {
+    if (err) {
+        reject(err);
+    }
 
-        sns.publish({
-            Message: JSON.stringify(message),
-            Subject: subject,
-            TopicArn: topicArn,
-        }, (err) => {
-            if (err) {
-                return reject(new Error(`Failed to send SNS ${err}`));
-            }
+    resolve(res);
+}));
 
-            return resolve();
-        });
-    });
-}
-
-module.exports.makeRequest = (event, context, callback) => {
+module.exports.makeRequest = async (event, context, callback) => {
     const { url, region, snsTopic } = event;
     const timeout = event.timeout || 3000;
     const start = new Date().valueOf();
@@ -78,57 +93,20 @@ module.exports.makeRequest = (event, context, callback) => {
         return callback(new Error("No url provided"));
     }
 
-    return request({
-        url,
-        headers: {
-            "User-Agent": `checkless/1.0 (aws-lambda node-js/${process.version})`,
-        },
-        timeout,
-    }, (err, res) => {
+    let result;
+
+    try {
+        const checkResult = await checkUrl(url, timeout);
         const end = new Date().valueOf();
 
-        if (err) {
-            if (err.code === "ETIMEDOUT" || err.code === "ESOCKETTIMEDOUT") {
-                const result = buildTimeoutResult(url, timeout);
+        result = buildResult(url, checkResult, timeout, end - start);
+    } catch (err) {
+        const end = new Date().valueOf();
 
-                console.log("Request timed out.");
+        result = buildResultFromError(err, url, timeout, end - start);
+    }
 
-                sendSnsEvent(snsTopicArn, "site-monitor-result", result)
-                    .then(() => callback())
-                    .catch(error => callback(error));
+    await publishToSns(snsTopicArn, "site-monitor-result", result);
 
-                return;
-            }
-
-            if (err.code === "ECONNREFUSED") {
-                sendSnsEvent(snsTopicArn, "site-monitor-result", {
-                    success: false,
-                    url,
-                    timeout,
-                    errorMessage: "Could not connect",
-                })
-                    .then(() => callback())
-                    .catch(error => callback(error));
-
-                return;
-            }
-
-            sendSnsEvent(snsTopicArn, "site-monitor-result", {
-                success: false,
-                url,
-                timeout,
-                errorMessage: err.message || err,
-            })
-                .then(() => callback())
-                .catch(error => callback(error));
-
-            return;
-        }
-
-        const result = buildResult(url, res, timeout, end - start);
-
-        sendSnsEvent(snsTopicArn, "site-monitor-result", result)
-            .then(() => callback())
-            .catch(error => callback(error));
-    });
+    return callback();
 };
