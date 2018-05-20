@@ -9,7 +9,7 @@ const propertyFieldTitles = {
         formatter: value => `${value}ms`,
     },
     timeout: "Timeout",
-    region: "Region",
+    location: "Location",
 };
 
 module.exports.sendToSlack = (event, context, callback) => {
@@ -24,7 +24,7 @@ module.exports.sendToSlack = (event, context, callback) => {
         callback();
     });
 
-    console.log(`Sending to slack path: "${slackWebhookPath}", message: "Site check result: ${result.url} ${result.success ? "was successful" : "failed"}"`);
+    console.log(`Sending to slack path: "${slackWebhookPath}", message: "Site check result: ${result.url} (${result.location}) ${result.success ? "was successful" : "failed"}"`);
 
     req.write(JSON.stringify({
         attachments: [{

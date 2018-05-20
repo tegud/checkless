@@ -16,19 +16,16 @@ module.exports.handleRequest = async (event, context, callback) => {
         ...(result.success ? [] : [snsFailureTopicArn]),
     ];
 
-    console.log(`Handling request for ${result.url}, success: ${result.success}, sendingToTopics: ${topicsToSendTo.join(", ")}`);
+    console.log(`Handling request for ${result.url} (${result.location}), success: ${result.success}, sendingToTopics: ${topicsToSendTo.join(", ")}`);
 
     try {
-        await publishToSns(snsCompleteTopicArn, `SITE RESULT: ${result.url}`, result);
+        const snsSenders = [publishToSns(snsCompleteTopicArn, `SITE RESULT: ${result.url}`, result)];
 
-        if (result.success) {
-            console.log("Site monitor ok, nothing to do");
-            return new Promise(resolve => resolve());
+        if (!result.success) {
+            snsSenders.push(publishToSns(snsFailureTopicArn, `SITE FAIL: ${result.url}`, result.errorMessage || result));
         }
 
-        console.log("Site monitor fail, sending to failure SNS");
-
-        await publishToSns(snsFailureTopicArn, `SITE FAIL: ${result.url}`, result.errorMessage || result);
+        await Promise.all(snsSenders);
     } catch (error) {
         console.error(`Error sending SNS: ${error.message}`);
     }
