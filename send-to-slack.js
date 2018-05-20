@@ -9,6 +9,7 @@ const propertyFieldTitles = {
         formatter: value => `${value}ms`,
     },
     timeout: "Timeout",
+    region: "Region",
 };
 
 module.exports.sendToSlack = (event, context, callback) => {

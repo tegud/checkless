@@ -3,15 +3,16 @@ const { CheckStatusExpectationError } = require("./lib/errors");
 const { checkUrl } = require("./lib/check-url");
 const { parseContext } = require("./lib/context");
 
-const buildBaseResult = (url, timeout, ttfb) => ({
+const buildBaseResult = (url, timeout, ttfb, region) => ({
     url,
     timeout,
     timeToFirstByte: ttfb,
+    location: region,
 });
 
-function buildResult(response, url, timeout, ttfb) {
+function buildResult(response, url, timeout, ttfb, region) {
     const result = {
-        ...buildBaseResult(url, timeout, ttfb),
+        ...buildBaseResult(url, timeout, ttfb, region),
         statusCode: response.statusCode,
         success: true,
     };
@@ -19,10 +20,10 @@ function buildResult(response, url, timeout, ttfb) {
     return result;
 }
 
-const buildResultFromError = (err, url, timeout, ttfb) => {
+const buildResultFromError = (err, url, timeout, ttfb, region) => {
     const baseErrorResponse = {
         success: false,
-        ...buildBaseResult(url, timeout, ttfb),
+        ...buildBaseResult(url, timeout, ttfb, region),
     };
 
     if (err instanceof CheckStatusExpectationError) {

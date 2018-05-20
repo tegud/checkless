@@ -58,6 +58,7 @@ describe("make-request", () => {
                 statusCode: 200,
                 success: true,
                 timeout: 3000,
+                location: "region",
             });
 
             done();
@@ -82,6 +83,7 @@ describe("make-request", () => {
                 errorMessage: "Timeout after 1ms from url: http://localhost:3012",
                 success: false,
                 timeout: 1,
+                location: "region",
             });
 
             done();
@@ -108,6 +110,7 @@ describe("make-request", () => {
                 errorMessage: "Error response code 503",
                 success: false,
                 timeout: 3000,
+                location: "region",
             });
 
             done();
@@ -131,6 +134,7 @@ describe("make-request", () => {
                 errorMessage: "Could not connect",
                 success: false,
                 timeout: 3000,
+                location: "region",
             });
 
             done();
