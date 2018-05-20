@@ -105,7 +105,7 @@ describe("make-request", () => {
             expect(parsedMessage).toEqual({
                 url: "http://localhost:3012",
                 statusCode: 503,
-                errorMessage: "Error response code 503 from url: http://localhost:3012",
+                errorMessage: "Error response code 503",
                 success: false,
                 timeout: 3000,
             });
