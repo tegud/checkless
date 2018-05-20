@@ -9,7 +9,10 @@ const propertyFieldTitles = {
         formatter: value => `${value}ms`,
     },
     timeout: "Timeout",
-    location: "Location",
+    location: {
+        text: "Location",
+        formatter: (value, result) => `${value} (${result.region})`,
+    },
 };
 
 module.exports.sendToSlack = (event, context, callback) => {
@@ -47,7 +50,7 @@ module.exports.sendToSlack = (event, context, callback) => {
                 } else {
                     fields.push({
                         title: current.text,
-                        value: current.formatter(result[currentProperty]),
+                        value: current.formatter(result[currentProperty], result),
                         short: true,
                     });
                 }

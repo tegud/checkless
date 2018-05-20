@@ -49,19 +49,11 @@ describe("make-request", () => {
     });
 
     it("sends a message to SNS when successful", (done) => {
-        AWS.mock("SNS", "publish", (msg) => {
-            const parsedMessage = JSON.parse(msg.Message);
+        let parsedMessage;
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            parsedMessage = JSON.parse(msg.Message);
             delete parsedMessage.timeToFirstByte;
-
-            expect(parsedMessage).toEqual({
-                url: "http://localhost:3012",
-                statusCode: 200,
-                success: true,
-                timeout: 3000,
-                location: "region",
-            });
-
-            done();
+            callback();
         });
 
         makeRequest({
@@ -69,24 +61,31 @@ describe("make-request", () => {
             region: "eu-west-1",
             snsTopic: "complete",
         }, {
-            invokedFunctionArn: "arn:aws:lambda:region:accountId",
-        }, () => {});
-    });
-
-    it("sends a message to SNS when request timed out", (done) => {
-        AWS.mock("SNS", "publish", (msg) => {
-            const parsedMessage = JSON.parse(msg.Message);
-            delete parsedMessage.timeToFirstByte;
+            invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+        }, (err) => {
+            console.log(err);
 
             expect(parsedMessage).toEqual({
                 url: "http://localhost:3012",
-                errorMessage: "Timeout after 1ms from url: http://localhost:3012",
-                success: false,
-                timeout: 1,
-                location: "region",
+                statusCode: 200,
+                success: true,
+                timeout: 3000,
+                region: "eu-west-1",
+                location: "Ireland",
             });
 
             done();
+        });
+    });
+
+    it("sends a message to SNS when request timed out", (done) => {
+        let parsedMessage;
+
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            parsedMessage = JSON.parse(msg.Message);
+            delete parsedMessage.timeToFirstByte;
+
+            callback();
         });
 
         makeRequest({
@@ -95,25 +94,28 @@ describe("make-request", () => {
             region: "eu-west-1",
             snsTopic: "complete",
         }, {
-            invokedFunctionArn: "arn:aws:lambda:region:accountId",
-        }, () => {});
+            invokedFunctionArn: "arn:aws:lambda:us-east-1:accountId",
+        }, () => {
+            expect(parsedMessage).toEqual({
+                url: "http://localhost:3012",
+                errorMessage: "Timeout after 1ms from url: http://localhost:3012",
+                success: false,
+                timeout: 1,
+                region: "us-east-1",
+                location: "North Virginia",
+            });
+
+            done();
+        });
     });
 
     it("sends a message to SNS when server responds with non-200", (done) => {
-        AWS.mock("SNS", "publish", (msg) => {
-            const parsedMessage = JSON.parse(msg.Message);
+        let parsedMessage;
+
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            parsedMessage = JSON.parse(msg.Message);
             delete parsedMessage.timeToFirstByte;
-
-            expect(parsedMessage).toEqual({
-                url: "http://localhost:3012",
-                statusCode: 503,
-                errorMessage: "Error response code 503",
-                success: false,
-                timeout: 3000,
-                location: "region",
-            });
-
-            done();
+            callback();
         });
 
         httpServer.setStatusCode(503)
@@ -121,23 +123,28 @@ describe("make-request", () => {
                 url: "http://localhost:3012",
                 region: "eu-west-1",
                 snsTopic: "complete",
-            }, { invokedFunctionArn: "arn:aws:lambda:region:accountId" }, () => { }));
+            }, { invokedFunctionArn: "arn:aws:lambda:region:accountId" }, () => {
+                expect(parsedMessage).toEqual({
+                    url: "http://localhost:3012",
+                    statusCode: 503,
+                    errorMessage: "Error response code 503",
+                    success: false,
+                    timeout: 3000,
+                    region: "region",
+                    location: "region",
+                });
+
+                done();
+            }));
     });
 
     it("sends a message to SNS when server does not respond on port", (done) => {
-        AWS.mock("SNS", "publish", (msg) => {
-            const parsedMessage = JSON.parse(msg.Message);
+        let parsedMessage;
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            parsedMessage = JSON.parse(msg.Message);
             delete parsedMessage.timeToFirstByte;
 
-            expect(parsedMessage).toEqual({
-                url: "http://localhost:3013",
-                errorMessage: "Could not connect",
-                success: false,
-                timeout: 3000,
-                location: "region",
-            });
-
-            done();
+            callback();
         });
 
         httpServer.setStatusCode(503)
@@ -145,15 +152,24 @@ describe("make-request", () => {
                 url: "http://localhost:3013",
                 region: "eu-west-1",
                 snsTopic: "complete",
-            }, { invokedFunctionArn: "arn:aws:lambda:region:accountId" }, () => {}));
+            }, {
+                invokedFunctionArn: "arn:aws:lambda:region:accountId",
+            }, () => {
+                expect(parsedMessage).toEqual({
+                    url: "http://localhost:3013",
+                    errorMessage: "Could not connect",
+                    success: false,
+                    timeout: 3000,
+                    region: "region",
+                    location: "region",
+                });
+
+                done();
+            }));
     });
 
     it("sets user-agent to lambda-overwatch", (done) => {
-        AWS.mock("SNS", "publish", () => {
-            expect(httpServer.getLastUserAgent()).toBe(`checkless/1.0 (aws-lambda node-js/${process.version})`);
-
-            done();
-        });
+        AWS.mock("SNS", "publish", (msg, callback) => callback());
 
         httpServer.setStatusCode(503)
             .then(() => makeRequest({
@@ -162,6 +178,10 @@ describe("make-request", () => {
                 snsTopic: "complete",
             }, {
                 invokedFunctionArn: "arn:aws:lambda:region:accountId",
-            }, () => {}));
+            }, () => {
+                expect(httpServer.getLastUserAgent()).toBe(`checkless/1.0 (aws-lambda node-js/${process.version})`);
+
+                done();
+            }));
     });
 });

@@ -2,12 +2,14 @@ const { publishToSns } = require("./lib/sns");
 const { CheckStatusExpectationError } = require("./lib/errors");
 const { checkUrl } = require("./lib/check-url");
 const { parseContext } = require("./lib/context");
+const { lookupLocationFromRegion } = require("./lib/region-lookup");
 
 const buildBaseResult = (url, timeout, ttfb, region) => ({
     url,
     timeout,
     timeToFirstByte: ttfb,
-    location: region,
+    region,
+    location: lookupLocationFromRegion(region),
 });
 
 function buildResult(response, url, timeout, ttfb, region) {
@@ -48,19 +50,7 @@ const buildResultFromError = (err, url, timeout, ttfb, region) => {
     };
 };
 
-module.exports.makeRequest = async (event, context, callback) => {
-    const { url, snsTopic } = event;
-    const timeout = event.timeout || 3000;
-    const { accountId, region } = parseContext(context);
-
-    const snsTopicArn = `arn:aws:sns:${region}:${accountId}:${snsTopic}`;
-
-    const parameters = {
-        region,
-        snsTopic,
-        accountId,
-        url,
-    };
+const validateRequiredParameters = (parameters) => {
     const requiredParameters = Object.keys(parameters);
     const missingRequiredParameters = requiredParameters.reduce((missing, current) => {
         if (parameters[current]) {
@@ -71,13 +61,32 @@ module.exports.makeRequest = async (event, context, callback) => {
     }, []);
 
     if (missingRequiredParameters.length) {
-        const errorMessage = `${missingRequiredParameters.join(", ")} not set`;
-        console.log(errorMessage);
+        throw new Error(`${missingRequiredParameters.join(", ")} not set`);
+    }
+};
+
+module.exports.makeRequest = async (event, context, callback) => {
+    const { url, snsTopic } = event;
+    const timeout = event.timeout || 3000;
+    const { accountId, region } = parseContext(context);
+
+    const snsTopicArn = `arn:aws:sns:${region}:${accountId}:${snsTopic}`;
+
+    try {
+        validateRequiredParameters({
+            region,
+            snsTopic,
+            accountId,
+            url,
+        });
+    } catch (error) {
         console.log(JSON.stringify(event, null, 4));
-        return callback(new Error(errorMessage));
+        console.log(JSON.stringify(context, null, 4));
+
+        return callback(error);
     }
 
-    console.log(`Testing url: ${url}, with timeout: ${timeout}, SNS ARN: ${snsTopicArn}`);
+    console.log(`Testing url: ${url} from ${region}, with timeout: ${timeout}, SNS ARN: ${snsTopicArn}`);
 
     let result;
 
@@ -93,7 +102,11 @@ module.exports.makeRequest = async (event, context, callback) => {
         result = buildResultFromError(err, url, timeout, end - start, region);
     }
 
-    await publishToSns(snsTopicArn, "site-monitor-result", result);
+    try {
+        await publishToSns(snsTopicArn, "site-monitor-result", result);
+    } catch (err) {
+        return callback(err);
+    }
 
     return callback();
 };
