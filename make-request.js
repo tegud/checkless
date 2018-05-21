@@ -66,11 +66,11 @@ const validateRequiredParameters = (parameters) => {
 };
 
 module.exports.makeRequest = async (event, context, callback) => {
-    const { url, snsTopic } = event;
+    const { url, snsTopic, homeRegion } = event;
     const timeout = event.timeout || 3000;
     const { accountId, region } = parseContext(context);
 
-    const snsTopicArn = `arn:aws:sns:${region}:${accountId}:${snsTopic}`;
+    const snsTopicArn = `arn:aws:sns:${homeRegion || region}:${accountId}:${snsTopic}`;
 
     try {
         validateRequiredParameters({

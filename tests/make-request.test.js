@@ -184,4 +184,43 @@ describe("make-request", () => {
                 done();
             }));
     });
+
+    it("sends to the region sns if homeRegion is not set", (done) => {
+        let topicArn;
+
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            topicArn = msg.TopicArn;
+            callback();
+        });
+
+        httpServer.setStatusCode(503)
+            .then(() => makeRequest({
+                url: "http://localhost:3012",
+                snsTopic: "complete",
+            }, { invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId" }, () => {
+                expect(topicArn).toBe("arn:aws:sns:eu-west-1:accountId:complete");
+
+                done();
+            }));
+    });
+
+    it("sends to the homeRegion sns if set", (done) => {
+        let topicArn;
+
+        AWS.mock("SNS", "publish", (msg, callback) => {
+            topicArn = msg.TopicArn;
+            callback();
+        });
+
+        httpServer.setStatusCode(503)
+            .then(() => makeRequest({
+                url: "http://localhost:3012",
+                homeRegion: "eu-west-1",
+                snsTopic: "complete",
+            }, { invokedFunctionArn: "arn:aws:lambda:us-east-1:accountId" }, () => {
+                expect(topicArn).toBe("arn:aws:sns:eu-west-1:accountId:complete");
+
+                done();
+            }));
+    });
 });
