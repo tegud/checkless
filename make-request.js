@@ -103,7 +103,7 @@ module.exports.makeRequest = async (event, context, callback) => {
     }
 
     try {
-        await publishToSns(snsTopicArn, "site-monitor-result", result);
+        await publishToSns(snsTopicArn, "site-monitor-result", result, region !== homeRegion ? homeRegion : undefined);
     } catch (err) {
         return callback(err);
     }
