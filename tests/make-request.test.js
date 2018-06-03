@@ -168,7 +168,7 @@ describe("make-request", () => {
             }));
     });
 
-    it("sets user-agent to lambda-overwatch", (done) => {
+    it("sets user-agent to checkless", (done) => {
         AWS.mock("SNS", "publish", (msg, callback) => callback());
 
         httpServer.setStatusCode(503)
