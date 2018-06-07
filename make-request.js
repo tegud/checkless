@@ -3,6 +3,7 @@ const { CheckStatusExpectationError } = require("./lib/errors");
 const { checkUrl } = require("./lib/check-url");
 const { parseContext } = require("./lib/context");
 const { lookupLocationFromRegion } = require("./lib/region-lookup");
+const { buildExpectationFromEvent } = require("./lib/build-check-expectation");
 
 const buildBaseResult = (url, timeout, ttfb, region) => ({
     url,
@@ -66,7 +67,12 @@ const validateRequiredParameters = (parameters) => {
 };
 
 module.exports.makeRequest = async (event, context, callback) => {
-    const { url, snsTopic, homeRegion } = event;
+    const {
+        url,
+        snsTopic,
+        homeRegion,
+        ...otherOptions
+    } = event;
     const timeout = event.timeout || 3000;
     const { accountId, region } = parseContext(context);
 
@@ -90,9 +96,11 @@ module.exports.makeRequest = async (event, context, callback) => {
 
     let result;
 
+    const expectation = buildExpectationFromEvent(otherOptions);
+
     const start = new Date().valueOf();
     try {
-        const checkResult = await checkUrl(url, timeout);
+        const checkResult = await checkUrl(url, timeout, expectation);
         const end = new Date().valueOf();
 
         result = buildResult(checkResult, url, timeout, end - start, region);
