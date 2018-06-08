@@ -13,7 +13,7 @@ const buildBaseResult = (url, timeout, ttfb, region) => ({
     location: lookupLocationFromRegion(region),
 });
 
-function buildResult(response, url, timeout, ttfb, region) {
+function buildResult(url, timeout, ttfb, region, response) {
     const result = {
         ...buildBaseResult(url, timeout, ttfb, region),
         statusCode: response.statusCode,
@@ -23,7 +23,7 @@ function buildResult(response, url, timeout, ttfb, region) {
     return result;
 }
 
-const buildResultFromError = (err, url, timeout, ttfb, region) => {
+const buildResultFromError = (url, timeout, ttfb, region, err) => {
     const baseErrorResponse = {
         success: false,
         ...buildBaseResult(url, timeout, ttfb, region),
@@ -100,14 +100,14 @@ module.exports.makeRequest = async (event, context, callback) => {
 
     const start = new Date().valueOf();
     try {
-        const checkResult = await checkUrl(url, timeout, expectation);
         const end = new Date().valueOf();
+        const checkResult = await checkUrl(url, timeout, expectation);
 
-        result = buildResult(checkResult, url, timeout, end - start, region);
+        result = buildResult(url, timeout, end - start, region, checkResult);
     } catch (err) {
         const end = new Date().valueOf();
 
-        result = buildResultFromError(err, url, timeout, end - start, region);
+        result = buildResultFromError(url, timeout, end - start, region, err);
     }
 
     try {
