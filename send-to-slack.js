@@ -2,13 +2,11 @@ const https = require("https");
 
 const propertyFieldTitles = {
     url: "URL",
-    statusCode: "Status Code",
     errorMessage: "Error",
     timeToFirstByte: {
         text: "Time to First Byte",
         formatter: value => `${value}ms`,
     },
-    timeout: "Timeout",
     location: {
         text: "Location",
         formatter: (value, result) => `${value} (${result.region})`,

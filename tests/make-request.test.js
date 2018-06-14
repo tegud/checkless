@@ -99,6 +99,7 @@ describe("make-request", () => {
             expect(parsedMessage).toEqual({
                 url: "http://localhost:3012",
                 errorMessage: "Timeout after 1ms from url: http://localhost:3012",
+                failureReasons: ["timeout"],
                 success: false,
                 timeout: 1,
                 region: "us-east-1",
@@ -127,7 +128,8 @@ describe("make-request", () => {
                 expect(parsedMessage).toEqual({
                     url: "http://localhost:3012",
                     statusCode: 503,
-                    errorMessage: "Error response code 503",
+                    errorMessage: "Received status 503, expected 200",
+                    failureReasons: ["statusCode"],
                     success: false,
                     timeout: 3000,
                     region: "region",
@@ -158,6 +160,7 @@ describe("make-request", () => {
                 expect(parsedMessage).toEqual({
                     url: "http://localhost:3013",
                     errorMessage: "Could not connect",
+                    failureReasons: [],
                     success: false,
                     timeout: 3000,
                     region: "region",

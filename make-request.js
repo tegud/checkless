@@ -33,6 +33,7 @@ const buildResultFromError = (url, timeout, ttfb, region, err) => {
         return {
             ...baseErrorResponse,
             errorMessage: err.message,
+            failureReasons: err.failureReasons,
             statusCode: err.actualStatus,
         };
     }
@@ -43,11 +44,14 @@ const buildResultFromError = (url, timeout, ttfb, region, err) => {
         ECONNREFUSED: "Could not connect",
     };
 
+    const failureReasons = ["ETIMEDOUT", "EESOCKETTIMEDOUT"].includes(err.code) ? ["timeout"] : [];
+
     return {
         ...baseErrorResponse,
         errorMessage: errorMessageOverrides[err.code]
             ? errorMessageOverrides[err.code]
             : err.message || err,
+        failureReasons,
     };
 };
 
