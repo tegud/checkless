@@ -104,8 +104,8 @@ module.exports.makeRequest = async (event, context, callback) => {
 
     const start = new Date().valueOf();
     try {
-        const end = new Date().valueOf();
         const checkResult = await checkUrl(url, timeout, expectation);
+        const end = new Date().valueOf();
 
         result = buildResult(url, timeout, end - start, region, checkResult);
     } catch (err) {
