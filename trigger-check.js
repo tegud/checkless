@@ -36,7 +36,11 @@ const getContentType = (headers) => {
 
 module.exports.triggerCheck = async (event, context, callback) => {
     const contentType = getContentType(event.headers);
-    const parsedData = await (bodyParsers[contentType] ? bodyParsers[contentType](event) : formDataParser(event));
+    const bodyParser = bodyParsers[contentType]
+        ? bodyParsers[contentType](event)
+        : formDataParser(event);
+
+    const parsedData = await bodyParser;
     const { accountId, region } = parseContext(context);
     const sendToRegion = parsedData.region || region;
     const snsTopicArn = `arn:aws:sns:${sendToRegion}:${accountId}:${process.env.makeRequestTopic}`;
