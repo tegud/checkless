@@ -28,7 +28,7 @@ const getContentType = (headers) => {
     }
 
     if (headers["Content-Type"].endsWith("; charset=utf-8")) {
-        headers["Content-Type"].substring(0, headers["Content-Type"].indexOf("; charset=utf-8"));
+        return headers["Content-Type"].substring(0, headers["Content-Type"].indexOf("; charset=utf-8"));
     }
 
     return headers["Content-Type"];
