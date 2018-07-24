@@ -70,22 +70,35 @@ const validateRequiredParameters = (parameters) => {
     }
 };
 
+const getOptions = (event) => {
+    if (event.Records && event.Records.length && event.Records[0] && event.Records[0].EventSource === "aws:sns") {
+        return JSON.parse(event.Records[0].Sns.Message);
+    }
+
+    return event;
+};
+
 module.exports.makeRequest = async (event, context, callback) => {
+    const requestOptions = getOptions(event);
+
     const {
         url,
-        snsTopic,
-        homeRegion,
         ...otherOptions
-    } = event;
+    } = requestOptions;
+    const {
+        handleRequestTopic,
+        homeRegion,
+    } = process.env;
+
     const timeout = event.timeout || 3000;
     const { accountId, region } = parseContext(context);
 
-    const snsTopicArn = `arn:aws:sns:${homeRegion || region}:${accountId}:${snsTopic}`;
+    const snsTopicArn = `arn:aws:sns:${homeRegion || region}:${accountId}:${handleRequestTopic}`;
 
     try {
         validateRequiredParameters({
             region,
-            snsTopic,
+            handleRequestTopic,
             accountId,
             url,
         });

@@ -29,7 +29,7 @@ const getField = (property, result) => {
 
     return {
         title: current.text,
-        value: current.formatter(result[property], result),
+        value: current.formatter ? current.formatter(result[property], result) : result[property],
         short: typeof current.short === "undefined" ? true : current.short,
     };
 };
