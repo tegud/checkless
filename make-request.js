@@ -83,6 +83,7 @@ module.exports.makeRequest = async (event, context, callback) => {
 
     const {
         url,
+        followRedirect,
         ...otherOptions
     } = requestOptions;
     const {
@@ -117,7 +118,7 @@ module.exports.makeRequest = async (event, context, callback) => {
 
     const start = new Date().valueOf();
     try {
-        const checkResult = await checkUrl(url, timeout, expectation);
+        const checkResult = await checkUrl(url, { timeout, followRedirect }, expectation);
         const end = new Date().valueOf();
 
         result = buildResult(url, timeout, end - start, region, checkResult);

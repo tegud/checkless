@@ -9,11 +9,17 @@ function HttpServer(port = 3012) {
     let statusCode = 200;
     let lastUserAgent;
 
-    app.use((req, res) => {
+    app.get("/", (req, res) => {
         lastUserAgent = req.headers["user-agent"];
 
         res.status(statusCode);
         res.json({});
+    });
+
+    app.get("/redirect", (req, res) => {
+        lastUserAgent = req.headers["user-agent"];
+
+        res.redirect("/", 302);
     });
 
     return {
@@ -271,6 +277,77 @@ describe("make-request", () => {
                 expect(parsedMessage).toEqual({
                     url: "http://localhost:3012",
                     statusCode: 200,
+                    success: true,
+                    timeout: 3000,
+                    region: "eu-west-1",
+                    location: "Ireland",
+                });
+
+                done();
+            });
+        });
+    });
+
+
+    describe("follow redirect", () => {
+        it("follows redirects by default", (done) => {
+            let parsedMessage;
+            AWS.mock("SNS", "publish", (msg, callback) => {
+                parsedMessage = JSON.parse(msg.Message);
+                delete parsedMessage.timeToFirstByte;
+                callback();
+            });
+
+            process.env.homeRegion = "eu-west-1";
+            process.env.handleRequestTopic = "complete";
+
+            httpServer.setStatusCode(200);
+
+            makeRequest({
+                url: "http://localhost:3012/redirect",
+            }, {
+                invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+            }, (err) => {
+                console.log(err);
+
+                expect(parsedMessage).toEqual({
+                    url: "http://localhost:3012/redirect",
+                    statusCode: 200,
+                    success: true,
+                    timeout: 3000,
+                    region: "eu-west-1",
+                    location: "Ireland",
+                });
+
+                done();
+            });
+        });
+
+        it("does not follows redirect when configured", (done) => {
+            let parsedMessage;
+            AWS.mock("SNS", "publish", (msg, callback) => {
+                parsedMessage = JSON.parse(msg.Message);
+                delete parsedMessage.timeToFirstByte;
+                callback();
+            });
+
+            process.env.homeRegion = "eu-west-1";
+            process.env.handleRequestTopic = "complete";
+
+            httpServer.setStatusCode(200);
+
+            makeRequest({
+                url: "http://localhost:3012/redirect",
+                followRedirect: false,
+                statusCode: 302,
+            }, {
+                invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+            }, (err) => {
+                console.log(err);
+
+                expect(parsedMessage).toEqual({
+                    url: "http://localhost:3012/redirect",
+                    statusCode: 302,
                     success: true,
                     timeout: 3000,
                     region: "eu-west-1",
