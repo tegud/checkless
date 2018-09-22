@@ -1,4 +1,4 @@
-const { buildExpectationFromEvent } = require("../lib/build-check-expectation");
+const { buildExpectationFromEvent } = require("../lib/make-request/build-check-expectation");
 
 describe("build expectation from event", () => {
     describe("when no properties", () => {

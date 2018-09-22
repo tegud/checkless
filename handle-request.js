@@ -1,15 +1,18 @@
 const { parseContext } = require("./lib/context");
 const { publishToSns } = require("./lib/sns");
 
+const buildTopicArns = ({ accountId, region }, { snsFailureTopic, snsCompleteTopic }) => ({
+    snsFailureTopicArn: `arn:aws:sns:${region}:${accountId}:${snsFailureTopic}`,
+    snsCompleteTopicArn: `arn:aws:sns:${region}:${accountId}:${snsCompleteTopic}`,
+});
+
 module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
-    const snsFailureTopic = process.env.failedSnsTopic;
-    const snsCompleteTopic = process.env.completeSnsTopic;
 
-    const { accountId, region } = parseContext(context);
-
-    const snsFailureTopicArn = `arn:aws:sns:${region}:${accountId}:${snsFailureTopic}`;
-    const snsCompleteTopicArn = `arn:aws:sns:${region}:${accountId}:${snsCompleteTopic}`;
+    const {
+        snsFailureTopicArn,
+        snsCompleteTopicArn,
+    } = buildTopicArns(parseContext(context), process.env);
 
     const topicsToSendTo = [
         snsCompleteTopicArn,
