@@ -290,7 +290,7 @@ describe("make-request", () => {
 
 
     describe("follow redirect", () => {
-        it("follows redirects by default", (done) => {
+        it("follows redirects when configured", (done) => {
             let parsedMessage;
             AWS.mock("SNS", "publish", (msg, callback) => {
                 parsedMessage = JSON.parse(msg.Message);
@@ -305,6 +305,7 @@ describe("make-request", () => {
 
             makeRequest({
                 url: "http://localhost:3012/redirect",
+                followRedirect: true,
             }, {
                 invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
             }, (err) => {
@@ -323,7 +324,7 @@ describe("make-request", () => {
             });
         });
 
-        it("does not follows redirect when configured", (done) => {
+        it("does not follows redirect by default", (done) => {
             let parsedMessage;
             AWS.mock("SNS", "publish", (msg, callback) => {
                 parsedMessage = JSON.parse(msg.Message);
@@ -338,7 +339,6 @@ describe("make-request", () => {
 
             makeRequest({
                 url: "http://localhost:3012/redirect",
-                followRedirect: false,
                 statusCode: 302,
             }, {
                 invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
