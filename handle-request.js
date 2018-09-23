@@ -1,9 +1,15 @@
 const { parseContext } = require("./lib/context");
 const { publishToSns } = require("./lib/sns");
 
-const buildTopicArns = ({ accountId, region }, { snsFailureTopic, snsCompleteTopic }) => ({
-    snsFailureTopicArn: `arn:aws:sns:${region}:${accountId}:${snsFailureTopic}`,
-    snsCompleteTopicArn: `arn:aws:sns:${region}:${accountId}:${snsCompleteTopic}`,
+const buildTopicArns = ({
+    accountId,
+    region,
+}, {
+    completeSnsTopic,
+    failedSnsTopic,
+}) => ({
+    snsFailureTopicArn: `arn:aws:sns:${region}:${accountId}:${failedSnsTopic}`,
+    snsCompleteTopicArn: `arn:aws:sns:${region}:${accountId}:${completeSnsTopic}`,
 });
 
 module.exports.handleRequest = async (event, context, callback) => {
