@@ -1,5 +1,5 @@
 
-const { checkResult } = require("../lib/make-request/check-url/check-result");
+const { checkResult } = require("../../lib/make-request/check-url/check-result");
 
 describe("check result", () => {
     describe("when statusCode is set to number", () => {

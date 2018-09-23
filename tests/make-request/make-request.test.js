@@ -1,5 +1,5 @@
 const AWS = require("aws-sdk-mock");
-const { makeRequest } = require("../make-request");
+const { makeRequest } = require("../../make-request");
 const express = require("express");
 const http = require("http");
 
