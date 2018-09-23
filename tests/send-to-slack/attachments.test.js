@@ -22,6 +22,46 @@ describe("result slack attachment", () => {
                 },
             ]);
         });
+
+        it("includes location field", () => {
+            expect(buildAttachments({
+                url: "http://example.com",
+                success: false,
+                region: "eu-west-1",
+                location: "Ireland",
+            })[0].fields).toEqual([
+                {
+                    title: "URL",
+                    value: "http://example.com",
+                    short: true,
+                },
+                {
+                    title: "Location",
+                    value: "Ireland (eu-west-1)",
+                    short: true,
+                },
+            ]);
+        });
+
+        it("includes Time to first byte field", () => {
+            expect(buildAttachments({
+                url: "http://example.com",
+                success: false,
+                region: "eu-west-1",
+                timeToFirstByte: 500,
+            })[0].fields).toEqual([
+                {
+                    title: "URL",
+                    value: "http://example.com",
+                    short: true,
+                },
+                {
+                    title: "Time to First Byte",
+                    value: "500ms",
+                    short: true,
+                },
+            ]);
+        });
     });
 
     describe("For failed check", () => {
@@ -42,6 +82,26 @@ describe("result slack attachment", () => {
                             short: true,
                         },
                     ],
+                },
+            ]);
+        });
+
+        it("includes error message field", () => {
+            expect(buildAttachments({
+                url: "http://example.com",
+                success: false,
+                region: "eu-west-1",
+                errorMessage: "ERROR MESSAGE",
+            })[0].fields).toEqual([
+                {
+                    title: "URL",
+                    value: "http://example.com",
+                    short: true,
+                },
+                {
+                    title: "Error",
+                    value: "ERROR MESSAGE",
+                    short: false,
                 },
             ]);
         });
