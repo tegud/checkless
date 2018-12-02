@@ -1,3 +1,5 @@
+const AWS = require("aws-sdk"); // eslint-disable-line import/no-extraneous-dependencies
+
 const { parseContext } = require("./lib/context");
 const { publishToSns } = require("./lib/sns");
 
@@ -11,6 +13,15 @@ const buildTopicArns = ({
     snsFailureTopicArn: `arn:aws:sns:${region}:${accountId}:${failedSnsTopic}`,
     snsCompleteTopicArn: `arn:aws:sns:${region}:${accountId}:${completeSnsTopic}`,
 });
+
+const storeResultToDynamo = async (item) => {
+    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: "" });
+
+    return dynamodb.put({
+        TableName: `${process.env.service || "checkless"}_lastResult`,
+        Item: item,
+    }).promise();
+};
 
 module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
@@ -45,6 +56,10 @@ module.exports.handleRequest = async (event, context, callback) => {
         }) => publishToSns(topicArn, title, message)));
     } catch (error) {
         console.error(`Error sending SNS: ${error.message}`);
+    }
+
+    if (process.env.storeResult) {
+        await storeResultToDynamo(result);
     }
 
     return callback();

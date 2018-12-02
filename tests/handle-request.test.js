@@ -177,5 +177,157 @@ describe("make-request", () => {
                 });
             });
         });
+
+        describe("stores results when configured", () => {
+            afterEach(() => {
+                AWS.restore("DynamoDB.DocumentClient", "put");
+            });
+
+            it("puts to dynamodb", (done) => {
+                let dynamoDbPutCalled;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    dynamoDbPutCalled = true;
+                    callback(null, "successfully put item in database");
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true }",
+                            },
+                        },
+                    ],
+                };
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+                process.env.failedSnsTopic = "failed";
+
+                handleRequest(event, context, () => {
+                    expect(dynamoDbPutCalled).toBeTruthy();
+
+                    done();
+                });
+            });
+
+            it("table name is prefixed with checkless by default", (done) => {
+                let tableName;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    tableName = params.TableName;
+                    callback(null, "successfully put item in database");
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true }",
+                            },
+                        },
+                    ],
+                };
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+                process.env.failedSnsTopic = "failed";
+
+                handleRequest(event, context, () => {
+                    expect(tableName).toBe("checkless_lastResult");
+
+                    done();
+                });
+            });
+
+            it("table name is prefixed with service name when set", (done) => {
+                let tableName;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    tableName = params.TableName;
+                    callback(null, "successfully put item in database");
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true }",
+                            },
+                        },
+                    ],
+                };
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+                process.env.failedSnsTopic = "failed";
+                process.env.service = "my";
+
+                handleRequest(event, context, () => {
+                    expect(tableName).toBe("my_lastResult");
+
+                    done();
+                });
+            });
+
+            it("Item is set to result record", (done) => {
+                let item;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    item = params.Item;
+                    callback(null, "successfully put item in database");
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true }",
+                            },
+                        },
+                    ],
+                };
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+                process.env.failedSnsTopic = "failed";
+                process.env.service = "my";
+
+                handleRequest(event, context, () => {
+                    expect(item.success).toBeTruthy();
+
+                    done();
+                });
+            });
+        });
     });
 });
