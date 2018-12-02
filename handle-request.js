@@ -21,20 +21,28 @@ module.exports.handleRequest = async (event, context, callback) => {
     } = buildTopicArns(parseContext(context), process.env);
 
     const topicsToSendTo = [
-        snsCompleteTopicArn,
-        ...(result.success ? [] : [snsFailureTopicArn]),
+        {
+            topicArn: snsCompleteTopicArn,
+            title: `SITE RESULT: ${result.url}`,
+            message: result,
+        },
+        ...(result.success ? [] : [
+            {
+                topicArn: snsFailureTopicArn,
+                title: `SITE FAIL: ${result.url}`,
+                message: result.errorMessage || result,
+            },
+        ]),
     ];
 
-    console.log(`Handling request for ${result.url} (${result.location}), success: ${result.success}, sendingToTopics: ${topicsToSendTo.join(", ")}`);
+    console.log(`Handling request for ${result.url} (${result.location}), success: ${result.success}, sendingToTopics: ${topicsToSendTo.map(({ topicArn }) => topicArn).join(", ")}`);
 
     try {
-        const snsSenders = [publishToSns(snsCompleteTopicArn, `SITE RESULT: ${result.url}`, result)];
-
-        if (!result.success) {
-            snsSenders.push(publishToSns(snsFailureTopicArn, `SITE FAIL: ${result.url}`, result.errorMessage || result));
-        }
-
-        await Promise.all(snsSenders);
+        await Promise.all(topicsToSendTo.map(({
+            topicArn,
+            title,
+            message,
+        }) => publishToSns(topicArn, title, message)));
     } catch (error) {
         console.error(`Error sending SNS: ${error.message}`);
     }
