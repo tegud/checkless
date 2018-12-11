@@ -1,9 +1,14 @@
 const AWS = require("aws-sdk-mock");
 const { handleRequest } = require("../handle-request");
 
+let currentDate;
+
+Date.now = jest.fn(() => currentDate);
+
 describe("make-request", () => {
     afterEach(() => {
         AWS.restore("SNS", "publish");
+        currentDate = undefined;
     });
 
     describe("handle request", () => {
@@ -178,7 +183,7 @@ describe("make-request", () => {
             });
         });
 
-        describe("stores results when configured", () => {
+        describe("stores results when configured to", () => {
             afterEach(() => {
                 AWS.restore("DynamoDB.DocumentClient", "put");
             });
@@ -324,6 +329,45 @@ describe("make-request", () => {
 
                 handleRequest(event, context, () => {
                     expect(item.success).toBeTruthy();
+
+                    done();
+                });
+            });
+        });
+
+        describe("result history", () => {
+            it("Stored Item lastStateChange is set to now when no previous record", (done) => {
+                let item;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    item = params.Item;
+                    callback(null, "successfully put item in database");
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true }",
+                            },
+                        },
+                    ],
+                };
+
+                currentDate = "2018-12-11T07:11:00Z";
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+
+                handleRequest(event, context, () => {
+                    expect(item.lastStateChange).toBe("2018-12-11T07:11:00+00:00");
 
                     done();
                 });

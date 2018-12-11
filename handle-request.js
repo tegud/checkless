@@ -1,4 +1,5 @@
 const AWS = require("aws-sdk"); // eslint-disable-line import/no-extraneous-dependencies
+const moment = require("moment");
 
 const { parseContext } = require("./lib/context");
 const { publishToSns } = require("./lib/sns");
@@ -22,6 +23,11 @@ const storeResultToDynamo = async (item) => {
         Item: item,
     }).promise();
 };
+
+const buildDynamoRecord = ({ success }) => ({
+    success,
+    lastStateChange: moment().format(),
+});
 
 module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
@@ -59,7 +65,7 @@ module.exports.handleRequest = async (event, context, callback) => {
     }
 
     if (process.env.storeResult) {
-        await storeResultToDynamo(result);
+        await storeResultToDynamo(buildDynamoRecord(result));
     }
 
     return callback();
