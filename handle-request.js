@@ -15,22 +15,54 @@ const buildTopicArns = ({
     snsCompleteTopicArn: `arn:aws:sns:${region}:${accountId}:${completeSnsTopic}`,
 });
 
+const dynamoTableName = () => `${process.env.service || "checkless"}_lastResult`;
+
 const storeResultToDynamo = async (item) => {
     const dynamodb = new AWS.DynamoDB.DocumentClient({ region: "" });
 
     return dynamodb.put({
-        TableName: `${process.env.service || "checkless"}_lastResult`,
+        TableName: dynamoTableName(),
         Item: item,
     }).promise();
 };
 
-const buildDynamoRecord = ({ success }) => ({
+const getLastResultFromDynamo = async () => {
+    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: "eu-west-1" });
+
+    const record = await dynamodb.get({
+        TableName: dynamoTableName(),
+        Key: "ABC",
+    }).promise();
+
+    return record.Item;
+};
+
+const getStateHistoryValues = (success, previousResult) => {
+    if (!previousResult || previousResult.success !== success) {
+        return {
+            lastStateChange: moment().format(),
+            checksInState: 1,
+        };
+    }
+
+    const { lastStateChange, checksInState } = previousResult;
+
+    return {
+        lastStateChange,
+        checksInState: checksInState + 1,
+    };
+};
+
+const buildDynamoRecord = ({ success }, previousResult) => ({
     success,
-    lastStateChange: moment().format(),
+    ...getStateHistoryValues(success, previousResult),
 });
 
 module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
+    const previousResult = process.env.storeResult
+        ? await getLastResultFromDynamo(result)
+        : undefined;
 
     const {
         snsFailureTopicArn,
@@ -65,7 +97,7 @@ module.exports.handleRequest = async (event, context, callback) => {
     }
 
     if (process.env.storeResult) {
-        await storeResultToDynamo(buildDynamoRecord(result));
+        await storeResultToDynamo(buildDynamoRecord(result, previousResult));
     }
 
     return callback();

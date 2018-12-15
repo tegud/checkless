@@ -186,6 +186,7 @@ describe("make-request", () => {
         describe("stores results when configured to", () => {
             afterEach(() => {
                 AWS.restore("DynamoDB.DocumentClient", "put");
+                AWS.restore("DynamoDB.DocumentClient", "get");
             });
 
             it("puts to dynamodb", (done) => {
@@ -198,6 +199,10 @@ describe("make-request", () => {
                 AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
                     dynamoDbPutCalled = true;
                     callback(null, "successfully put item in database");
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                    callback(null, {});
                 });
 
                 const event = {
@@ -236,6 +241,10 @@ describe("make-request", () => {
                     callback(null, "successfully put item in database");
                 });
 
+                AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                    callback(null, {});
+                });
+
                 const event = {
                     Records: [
                         {
@@ -270,6 +279,10 @@ describe("make-request", () => {
                 AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
                     tableName = params.TableName;
                     callback(null, "successfully put item in database");
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                    callback(null, {});
                 });
 
                 const event = {
@@ -309,6 +322,10 @@ describe("make-request", () => {
                     callback(null, "successfully put item in database");
                 });
 
+                AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                    callback(null, {});
+                });
+
                 const event = {
                     Records: [
                         {
@@ -336,40 +353,252 @@ describe("make-request", () => {
         });
 
         describe("result history", () => {
-            it("Stored Item lastStateChange is set to now when no previous record", (done) => {
-                let item;
+            afterEach(() => {
+                AWS.restore("DynamoDB.DocumentClient", "put");
+                AWS.restore("DynamoDB.DocumentClient", "get");
+            });
 
-                AWS.mock("SNS", "publish", (msg, callback) => {
-                    callback();
-                });
+            describe("lastStateChange", () => {
+                it("is set to now when no previous record", (done) => {
+                    let item;
 
-                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
-                    item = params.Item;
-                    callback(null, "successfully put item in database");
-                });
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
 
-                const event = {
-                    Records: [
-                        {
-                            Sns: {
-                                Message: "{ \"success\": true }",
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, {});
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": true }",
+                                },
                             },
-                        },
-                    ],
-                };
+                        ],
+                    };
 
-                currentDate = "2018-12-11T07:11:00Z";
+                    currentDate = "2018-12-11T07:11:00Z";
 
-                const context = {
-                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
-                };
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
 
-                process.env.storeResult = true;
+                    process.env.storeResult = true;
 
-                handleRequest(event, context, () => {
-                    expect(item.lastStateChange).toBe("2018-12-11T07:11:00+00:00");
+                    handleRequest(event, context, () => {
+                        expect(item.lastStateChange).toBe("2018-12-11T07:11:00+00:00");
 
-                    done();
+                        done();
+                    });
+                });
+
+                it("is set to previousDate when previous state matches", (done) => {
+                    let item;
+
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, { Item: { success: true, lastStateChange: "2018-12-11T07:10:00+00:00" } });
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": true }",
+                                },
+                            },
+                        ],
+                    };
+
+                    currentDate = "2018-12-11T07:11:00Z";
+
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
+
+                    process.env.storeResult = true;
+
+                    handleRequest(event, context, () => {
+                        expect(item.lastStateChange).toBe("2018-12-11T07:10:00+00:00");
+
+                        done();
+                    });
+                });
+
+                it("is set to current time when previous state is different", (done) => {
+                    let item;
+
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, { Item: { success: true, lastStateChange: "2018-12-11T07:10:00+00:00" } });
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": false }",
+                                },
+                            },
+                        ],
+                    };
+
+                    currentDate = "2018-12-11T07:11:00Z";
+
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
+
+                    process.env.storeResult = true;
+
+                    handleRequest(event, context, () => {
+                        expect(item.lastStateChange).toBe("2018-12-11T07:11:00+00:00");
+
+                        done();
+                    });
+                });
+            });
+
+            describe("checksInState", () => {
+                it("is set to 1 when no previous record", (done) => {
+                    let item;
+
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, {});
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": true }",
+                                },
+                            },
+                        ],
+                    };
+
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
+
+                    process.env.storeResult = true;
+
+                    handleRequest(event, context, () => {
+                        expect(item.checksInState).toBe(1);
+
+                        done();
+                    });
+                });
+
+                it("when success is the same as previous, is incremented by 1", (done) => {
+                    let item;
+
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, { Item: { success: true, checksInState: 1 } });
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": true }",
+                                },
+                            },
+                        ],
+                    };
+
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
+
+                    process.env.storeResult = true;
+
+                    handleRequest(event, context, () => {
+                        expect(item.checksInState).toBe(2);
+
+                        done();
+                    });
+                });
+
+                it("when success differnt from previous, it is set to 1", (done) => {
+                    let item;
+
+                    AWS.mock("SNS", "publish", (msg, callback) => {
+                        callback();
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                        item = params.Item;
+                        callback(null, "successfully put item in database");
+                    });
+
+                    AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                        callback(null, { Item: { success: true, checksInState: 1 } });
+                    });
+
+                    const event = {
+                        Records: [
+                            {
+                                Sns: {
+                                    Message: "{ \"success\": false }",
+                                },
+                            },
+                        ],
+                    };
+
+                    const context = {
+                        invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                    };
+
+                    process.env.storeResult = true;
+
+                    handleRequest(event, context, () => {
+                        expect(item.checksInState).toBe(1);
+
+                        done();
+                    });
                 });
             });
         });
