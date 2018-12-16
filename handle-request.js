@@ -53,7 +53,8 @@ const getStateHistoryValues = (success, previousResult) => {
     };
 };
 
-const buildDynamoRecord = ({ success }, previousResult) => ({
+const buildDynamoRecord = ({ success, name, region }, previousResult) => ({
+    key: `${name}_${region}`,
     success,
     ...getStateHistoryValues(success, previousResult),
 });

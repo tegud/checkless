@@ -183,7 +183,7 @@ describe("make-request", () => {
             });
         });
 
-        describe("stores results when configured to", () => {
+        describe("stores last result when configured to", () => {
             afterEach(() => {
                 AWS.restore("DynamoDB.DocumentClient", "put");
                 AWS.restore("DynamoDB.DocumentClient", "get");
@@ -346,6 +346,47 @@ describe("make-request", () => {
 
                 handleRequest(event, context, () => {
                     expect(item.success).toBeTruthy();
+
+                    done();
+                });
+            });
+
+            it("Item key is set to name and region", (done) => {
+                let item;
+
+                AWS.mock("SNS", "publish", (msg, callback) => {
+                    callback();
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "put", (params, callback) => {
+                    item = params.Item;
+                    callback(null, "successfully put item in database");
+                });
+
+                AWS.mock("DynamoDB.DocumentClient", "get", (params, callback) => {
+                    callback(null, {});
+                });
+
+                const event = {
+                    Records: [
+                        {
+                            Sns: {
+                                Message: "{ \"success\": true, \"name\": \"test\", \"region\": \"eu-west-1\" }",
+                            },
+                        },
+                    ],
+                };
+
+                const context = {
+                    invokedFunctionArn: "arn:aws:lambda:eu-west-1:accountId",
+                };
+
+                process.env.storeResult = true;
+                process.env.failedSnsTopic = "failed";
+                process.env.service = "my";
+
+                handleRequest(event, context, () => {
+                    expect(item.key).toBe("test_eu-west-1");
 
                     done();
                 });
@@ -562,7 +603,7 @@ describe("make-request", () => {
                     });
                 });
 
-                it("when success differnt from previous, it is set to 1", (done) => {
+                it("when success is differnt from previous, it is set to 1", (done) => {
                     let item;
 
                     AWS.mock("SNS", "publish", (msg, callback) => {
