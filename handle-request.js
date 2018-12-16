@@ -17,25 +17,7 @@ const buildTopicArns = ({
 
 const dynamoTableName = () => `${process.env.service || "checkless"}_lastResult`;
 
-const storeResultToDynamo = async (item) => {
-    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: "" });
-
-    return dynamodb.put({
-        TableName: dynamoTableName(),
-        Item: item,
-    }).promise();
-};
-
-const getLastResultFromDynamo = async () => {
-    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: "eu-west-1" });
-
-    const record = await dynamodb.get({
-        TableName: dynamoTableName(),
-        Key: "ABC",
-    }).promise();
-
-    return record.Item;
-};
+const buildKey = (name, region) => `${name}_${region}`;
 
 const getStateHistoryValues = (success, previousResult) => {
     if (!previousResult || previousResult.success !== success) {
@@ -59,16 +41,38 @@ const buildDynamoRecord = ({ success, name, region }, previousResult) => ({
     ...getStateHistoryValues(success, previousResult),
 });
 
+const storeResultToDynamo = async (homeRegion, item) => {
+    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: homeRegion });
+
+    return dynamodb.put({
+        TableName: dynamoTableName(),
+        Item: item,
+    }).promise();
+};
+
+const getLastResultFromDynamo = async (homeRegion, { name, region }) => {
+    const dynamodb = new AWS.DynamoDB.DocumentClient({ region: homeRegion });
+
+    const record = await dynamodb.get({
+        TableName: dynamoTableName(),
+        Key: buildKey(name, region),
+    }).promise();
+
+    return record.Item;
+};
+
 module.exports.handleRequest = async (event, context, callback) => {
     const result = JSON.parse(event.Records[0].Sns.Message);
+    const parsedContext = parseContext(context);
+    const homeRegion = parsedContext.region;
     const previousResult = process.env.storeResult
-        ? await getLastResultFromDynamo(result)
+        ? await getLastResultFromDynamo(homeRegion, result)
         : undefined;
 
     const {
         snsFailureTopicArn,
         snsCompleteTopicArn,
-    } = buildTopicArns(parseContext(context), process.env);
+    } = buildTopicArns(parsedContext, process.env);
 
     const topicsToSendTo = [
         {
@@ -98,7 +102,7 @@ module.exports.handleRequest = async (event, context, callback) => {
     }
 
     if (process.env.storeResult) {
-        await storeResultToDynamo(buildDynamoRecord(result, previousResult));
+        await storeResultToDynamo(homeRegion, buildDynamoRecord(result, previousResult));
     }
 
     return callback();
