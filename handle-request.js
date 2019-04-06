@@ -84,7 +84,7 @@ module.exports.handleRequest = async (event, context, callback) => {
             {
                 topicArn: snsFailureTopicArn,
                 title: `SITE FAIL: ${result.url}`,
-                message: result.errorMessage || result,
+                message: result,
             },
         ]),
     ];

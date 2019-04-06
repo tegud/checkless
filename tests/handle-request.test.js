@@ -147,7 +147,7 @@ describe("make-request", () => {
                 });
             });
 
-            it("sends errorMessage to failed SNS when failed set", (done) => {
+            it("sends result to failed SNS when failed set", (done) => {
                 let parsedMessage;
 
                 AWS.mock("SNS", "publish", (msg, callback) => {
@@ -176,7 +176,7 @@ describe("make-request", () => {
                 process.env.failedSnsTopic = "failed";
 
                 handleRequest(event, context, () => {
-                    expect(parsedMessage).toEqual("ERROR");
+                    expect(parsedMessage).toEqual({ success: false, errorMessage: "ERROR" });
 
                     done();
                 });
